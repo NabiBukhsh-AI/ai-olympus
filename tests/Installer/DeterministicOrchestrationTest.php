@@ -12,7 +12,7 @@ declare(strict_types = 1);
 test('every deterministic orchestration helper is shipped, executable, and self-testing', function (): void {
     $packageDir = dirname(__DIR__, 2);
 
-    $helpers = ['run-validation', 'plan-route', 'check-handoff', 'render-report', 'record-metrics', 'read-manifest', 'run-gate', 'verify-gate'];
+    $helpers = ['run-validation', 'plan-route', 'check-handoff', 'render-report', 'record-metrics', 'read-manifest', 'run-gate', 'verify-gate', 'gate-context'];
 
     foreach ($helpers as $helper) {
         $script = $packageDir . '/skills/_shared/' . $helper . '.sh';
@@ -255,4 +255,30 @@ test('the deterministic helpers are mapped for Codex, not only for Claude Code',
     $agents = (string) file_get_contents($packageDir . '/AGENTS.md');
     expect($agents)->toContain('Deterministic work is not an LLM\'s job.');
     expect($agents)->toContain('a green verdict needs no session');
+});
+
+test('the context relevance gate decides cheaply and defaults to false', function (): void {
+    $packageDir = dirname(__DIR__, 2);
+    $gate = (string) file_get_contents($packageDir . '/skills/_shared/gate-context.sh');
+
+    expect($gate)->toContain('context_required');
+    expect($gate)->toContain('confidence');
+    expect($gate)->toContain('domains');
+    expect($gate)->toContain('sources');
+    expect($gate)->toContain('budget');
+    expect($gate)->toContain('reason');
+
+    foreach ([
+        'default outcome skips retrieval with context_required false',
+        'a concrete class in a known domain returns context_required true',
+        'symbol match enables relevant sources and sets domains',
+        'each knowledge source can be enabled or disabled independently',
+        'deterministic detection is preferred over LLM',
+        'ambiguous task with insufficient signals escalates to LLM classification',
+        'budget smaller than available evidence still produces valid verdict',
+        'task type docs or formatting skips retrieval',
+        'machine-readable JSON output contains no prose',
+    ] as $label) {
+        expect($gate)->toContain('\'' . $label . '\'');
+    }
 });

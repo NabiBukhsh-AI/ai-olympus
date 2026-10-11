@@ -79,6 +79,8 @@ record() {
   local dispatches=0 escalated=0 rounds=0 critical=0 moderate=0
   local input_tokens="" output_tokens="" cache_tokens=""
   local gate_runs=0 gate_seconds=0 gate_duration
+  local context_gate_executed="" context_requested="" context_skipped=""
+  local sources_searched="" items_returned="" estimated_tokens_returned=""
   local store="${AI_OLYMPUS_HOME:-$HOME/.ai-olympus}/metrics.jsonl"
 
   while [[ $# -gt 0 ]]; do
@@ -104,7 +106,7 @@ record() {
       gate_seconds=$((gate_seconds + gate_duration))
       shift 2
       ;;
-    --agent-dispatches | --escalated-dispatches | --review-rounds | --critical | --moderate | --input-tokens | --output-tokens | --cache-read-tokens)
+    --agent-dispatches | --escalated-dispatches | --review-rounds | --critical | --moderate | --input-tokens | --output-tokens | --cache-read-tokens | --context-gate-executed | --context-requested | --context-skipped | --sources-searched | --items-returned | --estimated-tokens-returned)
       [[ $# -ge 2 ]] || { usage; return 1; }
       if ! is_count "$value"; then
         echo "$PROG: $flag takes a non-negative integer" >&2
@@ -119,6 +121,12 @@ record() {
       --input-tokens) input_tokens="$value" ;;
       --output-tokens) output_tokens="$value" ;;
       --cache-read-tokens) cache_tokens="$value" ;;
+      --context-gate-executed) context_gate_executed="$value" ;;
+      --context-requested) context_requested="$value" ;;
+      --context-skipped) context_skipped="$value" ;;
+      --sources-searched) sources_searched="$value" ;;
+      --items-returned) items_returned="$value" ;;
+      --estimated-tokens-returned) estimated_tokens_returned="$value" ;;
       esac
       shift 2
       ;;
@@ -153,6 +161,12 @@ record() {
     [[ -n "$output_tokens" ]] && printf ',"output_tokens":%s' "$output_tokens"
     [[ -n "$cache_tokens" ]] && printf ',"cache_read_tokens":%s' "$cache_tokens"
     [[ "$gate_runs" -gt 0 ]] && printf ',"gate_runs":%s,"gate_seconds":%s' "$gate_runs" "$gate_seconds"
+    [[ -n "$context_gate_executed" ]] && printf ',"context_gate_executed":%s' "$context_gate_executed"
+    [[ -n "$context_requested" ]] && printf ',"context_requested":%s' "$context_requested"
+    [[ -n "$context_skipped" ]] && printf ',"context_skipped":%s' "$context_skipped"
+    [[ -n "$sources_searched" ]] && printf ',"sources_searched":%s' "$sources_searched"
+    [[ -n "$items_returned" ]] && printf ',"items_returned":%s' "$items_returned"
+    [[ -n "$estimated_tokens_returned" ]] && printf ',"estimated_tokens_returned":%s' "$estimated_tokens_returned"
     printf '}\n'
   } >>"$store"
 

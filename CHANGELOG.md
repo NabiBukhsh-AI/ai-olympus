@@ -4,6 +4,8 @@ All notable changes to `ai-olympus` will be documented in this file.
 
 ## [Unreleased]
 
+- ⚡ **Added**: relevance-gated context retrieval step before optional knowledge is loaded (`skills/_shared/gate-context.sh`), deciding cheaply whether project knowledge is needed before retrieving it. Per issue #132.
+
 ## [0.1.3] - 2026-10-16
 
 - ♻️ **Changed**: code review now looks for duplicated logic in Actions across the whole codebase. `rules/code-review/core-analysis.md` *Reuse of existing logic* first lists every place where the diff applies the Action pattern: every new Action, every changed `__invoke()`, and every entry point moved onto an Action. It then compares each Action with every Action under `app/Actions/**`, not only with the Actions in the same domain folder. Two cases are Critical findings. The first is a duplicate Action with the same use case. The second is a sequence of two or more steps that another flow repeats, even when the use cases differ. A sequence of one concern moves once into the layer that owns it. A sequence that crosses layers is a finding only when an existing Action that an entry point also calls already runs it, and the fix composes that Action. A repeated sequence is one finding that lists every copy, and inline validation, mapping, or queries stay with their dedicated bullets. `rules/laravel/architecture.md` *Before you create an Action* states the same rule for the implementer, and `skills/code-review/SKILL.md` *DRY first* runs the walk. The *Action scope* bullet keeps only logic that no other flow repeats yet, so one fragment never raises two findings. The package owner requested the change directly.
