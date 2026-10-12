@@ -478,7 +478,12 @@ test('every rule renamed in issue #277 keeps a byte-identical body below the fro
         // also a namespace a project skill passes to the upsert helpers.
         // Re-baselined: the namespace list gained `support-analysis`, which `analyze-support-issue` writes.
         // Re-baselined: every review comment carries the `Input consistency:` and `Reuse (DRY):` header lines.
-        'rules/code-review/general.md' => '7eb5ba6d8d2094bab5b97845d255bd8383af6a98b238f162bdf7fe31c5c84d66',
+        // Re-baselined: a discrepancy a refactoring-only pull request carries over unchanged is settled by
+        // a follow-up issue, the one exception to *Provenance changes nothing about severity, counting, or the gate* (issue #175).
+        // Re-baselined: a review-only run mentions the author of the changes on each missing-test and DRY finding,
+        // the second exception to *The author of the changes is the account that pushed the pull request* (issue #175).
+        // Re-baselined: an issue with several pull requests gets its remarks and findings split per pull request (issue #175).
+        'rules/code-review/general.md' => '8876e53760d1f889f0749c848be8bac4017660d3bd20bb7d2c90cd0d3cc0d6b3',
         // Re-baselined: `## Jobs` gained the preferred invocation for a job's own test —
         // `app()->call([$job, 'handle'])`, so the container resolves the `handle()` dependencies
         // and the test builds no double just to satisfy the signature. Nothing else in the file
@@ -552,7 +557,10 @@ test('every rule renamed in issue #277 keeps a byte-identical body below the fro
         // Re-baselined: step 3 *Introduce the Action pattern* now keeps simple logic that does not
         // repeat in the entry point, per `rules/php/core-standards.md` Design Principles.
         // Re-baselined: the prompt audit removed history narration and stale references and resolved contradictions.
-        'rules/refactoring/general.md' => '8075b3662bf39d50559a49f81a3795c1ca225229dfebcf8d2f25e039b39050c3',
+        // Re-baselined: *Behaviour stays identical — bugs included* — a refactoring-only change keeps every
+        // behaviour, bugs included, and files every discrepancy it finds as a follow-up issue (issue #175).
+        // Re-baselined: the behaviour-change bullet carries its gating, one finding per behaviour change (issue #175).
+        'rules/refactoring/general.md' => '1269df8839674f49887a4cca903efe1c2287506c5b2488ee0f5bb6b182949b36',
         // Re-baselined: the file gained `## A JIRA comment is written for a non-technical
         // reader` — the banned-content list, its two exceptions, the 3 000-character cap, and
         // the sentence naming the pull-request comment as where the technical evidence moves

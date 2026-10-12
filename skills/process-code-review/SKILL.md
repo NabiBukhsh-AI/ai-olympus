@@ -109,6 +109,7 @@ Rules:
    - Either way, pre-existing fixes follow the same diff-scoped 100% coverage rule as CR fixes.
 4. In the single CR comment posted during **PR update**, list every pre-existing fix under a `## Pre-existing fixes` heading with a one-line rationale, so reviewers can review them independently of the CR thread.
 5. If a pre-existing issue is **non-trivial** (would significantly expand the PR or requires architectural discussion), do **not** fix it. Surface it in the CR comment as a deferred follow-up with the reason, **and file it yourself as a follow-up issue in the originating tracker** per `@rules/compound-engineering/tracker.md` *File deferred points as follow-up tracker issues* (mechanics in `@skills/resolve-issue/SKILL.md` *Deferred-item follow-up issues*) — do not leave the filing to the reviewer. The entry carries the created issue URL.
+6. **On a refactoring-only pull request, a bug or a security weakness is filed, never fixed** — `@rules/refactoring/general.md` *Behaviour stays identical — bugs included*.
 
 ---
 
@@ -199,7 +200,7 @@ This step **assembles** the comment body; **Completion** publishes it. This skil
 - **`## TL;DR`** — one plain-language line per change the loop landed: each CR item fixed, each pre-existing fix, the gate commit, and the reason any reviewer point was rejected or deferred. It replaces the resolved-items checklist: it says what changed, not which checks ran.
 - **The `Quality gate:` header value** — the command, its verdict, and the head SHA from Finalization, plus the tree and the record path when `run-gate.sh` wrote a record. `@skills/merge-github-pr/SKILL.md` *Pre-merge quality gate* reads it here.
 - **`## Affected behaviour outside the diff`** — only when the last review round listed at least one affected part (`@rules/code-review/core-analysis.md` *Behaviour changed outside the diff*): each entry unchanged. Omit when none was listed.
-- **`## Deferred to sub-issues`** — only when the Review loop deferred a Moderate at round 3: one entry per finding with `file:line`, the original severity, the reason, and the sub-issue URL (`references/round-three-deferral.md` *Reporting the deferral*).
+- **`## Deferred to sub-issues`** — only when the Review loop deferred a Moderate at round 3 or a refactoring-only pull request carries over a discrepancy: one entry per finding with `file:line`, the original severity, the reason, and the sub-issue or follow-up issue URL (`references/round-three-deferral.md` *Reporting the deferral*).
 - **`## Pre-existing fixes`** — only when **Pre-fix phase** landed one: each commit subject with a one-line rationale from the commit body. Omit when none landed.
 
 Never quote or reply to a previous CR comment body — this run's publish updates the same `cr-comment` in place, replacing it. That comment's `Reviewed revision:` / `Reviewed diff fingerprint:` header lines carry the next round's baseline, and this skill holds the previous round's finding dispositions in its own loop state.

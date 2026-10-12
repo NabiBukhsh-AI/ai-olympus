@@ -189,8 +189,25 @@ The latency budget of the changed path and the freshness of its data stay with t
 
 **The account that pushed the pull request linked to the issue is the author of the changes.** Read it from the pull request's `author.login` in the loader's PR JSON. Neither the issue reporter, the issue assignee, nor the agent that runs the review is the author.
 
-- **The author is internal information for the agent.** Use it to decide whose work the review examines and whom a reviewer question addresses. Never report it: no header line, no finding, and no TL;DR line names the author.
-- **One exception: an unmet acceptance criterion.** When the review judges a criterion not met or partially met, the tracker comment states why and mentions the author, who confirms and fixes the gap or refutes the claim. `@skills/pr-summary/SKILL.md` *An unmet criterion addresses the author* owns the wording and the mention syntax per tracker.
+- **The author is internal information for the agent.** Use it to decide whose work the review examines and whom a reviewer question addresses. Never report it: no header line, no finding, and no TL;DR line names the author, except in the two cases below.
+- **First exception: an unmet acceptance criterion.** When the review judges a criterion not met or partially met, the tracker comment states why and mentions the author, who confirms and fixes the gap or refutes the claim. `@skills/pr-summary/SKILL.md` *An unmet criterion addresses the author* owns the wording and the mention syntax per tracker.
+- **Second exception: a missing test or a DRY finding in a review-only run.** A review-only run (`/report-code-review`) mentions the author on the line of each such point, so the author sees which gap in their own change it names:
+  1. a finding about a missing test — an uncovered changed line, or an acceptance criterion no test proves;
+  2. a test the run's missing-tests commit had to add, because the change shipped without it;
+  3. a DRY finding — logic the diff repeats where *Reuse Existing Logic* above names an existing implementation.
+
+  The GitHub pull-request comment carries the mention in the finding's `Author` field and on each line of `## Missing tests added`. The tracker comment ends the `Review findings` bullet that retells the point with the mention. The mention syntax per tracker is the one *An unmet criterion addresses the author* defines. Every other finding, and every run that is not review-only, names no author.
+
+## An issue with several pull requests — remarks and findings split per pull request
+
+When the reviewed issue links more than one pull request, every remark and every finding belongs to exactly one of them, and the report says which one. A reader of one merged list cannot tell which pull request to fix, to review again, or to merge.
+
+- **The technical report stays on its own pull request.** Each pull request carries its own `cr-comment` with its own findings, counts, reviewed revision, and diff fingerprint. A finding is never published on a sibling pull request.
+- **The tracker comment groups per pull request.** On the issue — the source tracker comment and the linked-GitHub-issue mirror — each review finding, each reviewer remark, and each question that closes a finding sits under the pull request it concerns: one group per pull request, in pull-request number order. `@skills/pr-summary/references/several-pull-requests.md` owns the rendering per tracker.
+- **The issue-level verdict stays one.** The acceptance criteria belong to the issue, so the status line and the assignment verdict are rendered once, above the groups. An unmet criterion names the pull request that is meant to deliver it.
+- **A remark that concerns the issue as a whole stays outside the groups.** A question about the assignment that no pull request owns closes its criterion bullet, as on a single-PR issue.
+- **A run that reviews one of the pull requests rewrites only its own group.** The comment is updated in place, so the run reads it first and carries the groups of the other pull requests over unchanged. The review of the second pull request never erases the findings of the first.
+- **One pull request, no groups.** The comment keeps its usual shape.
 
 ## File and method size is never a code-review finding
 
@@ -420,7 +437,7 @@ Each published finding carries one `Provenance` field, with one of two values:
 
 The field exists because the two mean different things to whoever reads the report. A regression is something the previous round's fixes broke, so it is read against those fixes and usually resolved by correcting them. A pre-existing issue is not, and treating one as the other sends the author looking for a cause in the wrong commit. State which; never leave the field blank and never guess it from the finding's age — derive it from whether the cited line is in `git diff <baseline>..HEAD`.
 
-**Provenance changes nothing about severity, counting, or the gate.** Both classes count in the `Counts:` line and both block the merge at Critical and Moderate. A pre-existing Critical is not a lesser Critical.
+**Provenance changes nothing about severity, counting, or the gate.** Both classes count in the `Counts:` line and both block the merge at Critical and Moderate. A pre-existing Critical is not a lesser Critical. The one exception is a discrepancy a refactoring-only pull request carries over unchanged: `@rules/refactoring/general.md` *Code Review Application* settles it by a follow-up issue, because the pull request may not fix it.
 
 ### Filter on detection
 
