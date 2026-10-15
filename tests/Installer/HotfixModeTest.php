@@ -64,8 +64,11 @@ test('the merge gate lifts only the coverage threshold, on evidence from the rev
     expect($git)->toContain('**A HOTFIX is not a third exemption.**');
     expect($git)->toContain('### HOTFIX pull requests (coverage threshold lifted, review still required)');
 
-    expect($merge)->toContain('#### HOTFIX PR — coverage threshold lifted (code review still required)');
-    expect($merge)->toContain('**No such line, no waiver.**');
+    $exemptions = (string) file_get_contents($packageDir . '/skills/merge-github-pr/references/merge-exemptions.md');
+
+    expect($merge)->toContain('- **HOTFIX PR — coverage threshold lifted (code review still required)**');
+    expect($exemptions)->toContain('## HOTFIX PR — coverage threshold lifted (code review still required)');
+    expect($exemptions)->toContain('**No such line, no waiver.**');
     expect($merge)->toContain('On a qualified HOTFIX PR, a coverage shortfall is not a failure.');
 });
 

@@ -158,18 +158,7 @@ On GitHub and Bugsnag there is no word budget and no "fits on one screen" rule. 
 
 ### Terse output style (issue #51)
 
-Every sentence this skill authors into the rendered comment — the `What changed` fields, the `Review findings` bullets, and the `How to test` steps — carries a fact and nothing else.
-
-- **Drop** filler words (just / really / basically / actually / simply and their assignment-language equivalents), pleasantries, hedging, and self-congratulation.
-- **Keep** all technical substance — only fluff goes. Prefer short synonyms ("fix", not "implement a solution for").
-- **Sentence shape is `@rules/writing/general.md`'s, not this section's.** Terseness removes ideas per sentence and removes filler; it never removes a word the sentence needs. Keep articles, prepositions, and relative pronouns — telegraphic fragments are not terse, only shorter.
-- **Abbreviations:** standard well-known acronyms are fine (DB, API, HTTP); never invent new abbreviations (cfg / impl / req) — they save nothing and cost clarity.
-- **No decoration:** no decorative tables, no decorative emoji, no causal arrows (→) in authored prose.
-- **Verbatim always:** technical terms, code identifiers, toggle names, values, URLs, and commands.
-- **Compress the style, never the language** — the assignment-language rule above (`@rules/reports/general.md`) is unchanged.
-- **Never name or announce the style** in the rendered comment — no "terse mode". The JIRA template's footer, which states that the comment is generated, is traceability rather than a style announcement, and stays.
-- **Auto-clarity carve-outs** — write normal, fully explicit sentences for: the `Cause` and `Result` fields (a reader who misreads the mechanism draws the wrong conclusion), security warnings and destructive or irreversible actions inside `How to test` steps, and every must-hold outcome. Never drop a word whose absence changes or blurs a tester's action.
-- **Never compressed at all:** the `{embedded_blocks}` slot (rendered verbatim per the consolidation contract below), pre-authored test steps passed by the caller (used as passed), the closing links line, and the templates' fixed footers.
+Every authored sentence carries a fact and nothing else. Apply `references/terse-output-style.md` in full before you write: what to drop, what stays verbatim, and the auto-clarity carve-outs (`Cause`, `Result`, security warnings, must-hold outcomes).
 
 ### Output shape per target
 
@@ -179,22 +168,11 @@ Every sentence this skill authors into the rendered comment — the `What change
 
 ### No leaked markup on JIRA
 
-When the target is JIRA, the template body uses only the helper's supported Wiki Markup subset. It is never sent to JIRA directly. Before publishing, scan the source and convert or reject each leaked Markdown construct per `@rules/jira/general.md`:
-
-| Markdown | JIRA Wiki Markup |
-|---|---|
-| `**bold**` / `__bold__` | `*bold*` |
-| `#` / `##` / `###` headings | `h1.` / `h2.` / `h3.` |
-| `` `code` `` | `{{code}}` |
-| fenced ```` ``` ```` blocks | `{code}…{code}` |
-| `- ` / `+ ` bullets | `*` |
-| `[label]` + `(url)` | `[label\|url]` |
-
-The reader must never see a raw `**` or `#`.
+The JIRA body uses only the helper's supported Wiki Markup subset, and the reader never sees a raw `**` or `#`. Before publishing, convert or reject every leaked Markdown construct per `references/markup-per-target.md` and `@rules/jira/general.md`.
 
 ### No markup at all on Bugsnag
 
-Bugsnag renders a comment as plain text, so every markup character reaches the reader literally. Write the body with no headings, no bold, no inline code, no links in bracket form: section names on their own line, field labels followed by a colon, list items opened with a plain `-`, and URLs written out in full. There is no per-actor marker either — the API token identifies the author.
+Bugsnag renders plain text: no headings, bold, inline code, or bracket links. `references/markup-per-target.md` defines the shape.
 
 ### Embedded blocks (consolidation contract — issue #498)
 

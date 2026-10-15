@@ -481,18 +481,21 @@ test('pr-summary output style is terse — caveman-style prose compression (issu
     $jiraTemplate = (string) file_get_contents($packageDir . '/skills/pr-summary/templates/pr-summary-jira.md');
     $bugsnagTemplate = (string) file_get_contents($packageDir . '/skills/pr-summary/templates/pr-summary-bugsnag.md');
 
+    $terse = (string) file_get_contents($packageDir . '/skills/pr-summary/references/terse-output-style.md');
+
     expect($prSummary)->toContain('Terse output style (issue #51)');
-    expect($prSummary)->toContain('never invent new abbreviations');
-    expect($prSummary)->toContain('Compress the style, never the language');
-    expect($prSummary)->toContain('Never name or announce the style');
-    expect($prSummary)->toContain('write normal, fully explicit sentences');
-    expect($prSummary)->toContain('Never compressed at all');
+    expect($prSummary)->toContain('Apply `references/terse-output-style.md` in full before you write');
+    expect($terse)->toContain('never invent new abbreviations');
+    expect($terse)->toContain('Compress the style, never the language');
+    expect($terse)->toContain('Never name or announce the style');
+    expect($terse)->toContain('write normal, fully explicit sentences');
+    expect($terse)->toContain('Never compressed at all');
 
     // The terse contract now defers sentence shape to @rules/writing/general.md: filler goes,
     // words the sentence needs stay. A template that still advertised "fragments" would reinstate
     // the telegraphic compression that rule bans.
-    expect($prSummary)->toContain('Terseness removes ideas per sentence and removes filler');
-    expect($prSummary)->toContain('telegraphic fragments are not terse, only shorter');
+    expect($terse)->toContain('Terseness removes ideas per sentence and removes filler');
+    expect($terse)->toContain('telegraphic fragments are not terse, only shorter');
 
     // Issue #118: the `Problem` placeholder this literal belongs to is gone from the JIRA
     // template, which renders `Acceptance criteria` / `Review findings` / `What changed` instead.
