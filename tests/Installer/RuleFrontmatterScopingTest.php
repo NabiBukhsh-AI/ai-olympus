@@ -563,7 +563,9 @@ test('every rule renamed in issue #277 keeps a byte-identical body below the fro
         // Re-baselined: *Behaviour stays identical — bugs included* — a refactoring-only change keeps every
         // behaviour, bugs included, and files every discrepancy it finds as a follow-up issue (issue #175).
         // Re-baselined: the behaviour-change bullet carries its gating, one finding per behaviour change (issue #175).
-        'rules/refactoring/general.md' => '1269df8839674f49887a4cca903efe1c2287506c5b2488ee0f5bb6b182949b36',
+        // Re-baselined: behaviour preservation is the primary check of a refactoring-only review, and a
+        // behaviour change in it is a Moderate finding instead of a Critical one.
+        'rules/refactoring/general.md' => 'bfaf8e643096acb4471d6bed1f23be8e7a95cde0994b8fc3b6a5833a4241d76d',
         // Re-baselined: the file gained `## A JIRA comment is written for a non-technical
         // reader` — the banned-content list, its two exceptions, the 3 000-character cap, and
         // the sentence naming the pull-request comment as where the technical evidence moves
