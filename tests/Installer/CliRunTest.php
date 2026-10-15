@@ -5,6 +5,7 @@ declare(strict_types = 1);
 use Pekral\AiOlympus\Installer;
 use Pekral\AiOlympus\InstallerPath;
 use Pekral\AiOlympus\InstallOptions;
+use Tests\Support\StderrCapture;
 
 test('run shows help when executed without arguments', function (): void {
     ob_start();
@@ -17,16 +18,18 @@ test('run shows help when executed without arguments', function (): void {
 });
 
 test('run returns error code for unknown command', function (): void {
-    $exitCode = Installer::run(['ai-olympus', 'unknown']);
+    [$exitCode, $stderr] = StderrCapture::run(static fn (): int => Installer::run(['ai-olympus', 'unknown']));
 
     expect($exitCode)->toBe(1);
+    expect($stderr)->toBe('Unknown command: unknown' . PHP_EOL);
 });
 
 test('install with any --editor argument returns exit 1 (flag removed, never silently ignored)', function (): void {
     foreach (['claude', 'cursor', 'codex', 'all', 'invalid'] as $editorValue) {
-        $exitCode = Installer::run(['ai-olympus', 'install', '--editor=' . $editorValue]);
+        [$exitCode, $stderr] = StderrCapture::run(static fn (): int => Installer::run(['ai-olympus', 'install', '--editor=' . $editorValue]));
 
         expect($exitCode)->toBe(1);
+        expect($stderr)->toContain('The --editor option has been removed');
     }
 });
 

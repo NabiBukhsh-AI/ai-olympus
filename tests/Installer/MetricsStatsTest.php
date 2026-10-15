@@ -5,6 +5,7 @@ declare(strict_types = 1);
 use Pekral\AiOlympus\Installer;
 use Pekral\AiOlympus\MetricsReport;
 use Pekral\AiOlympus\MetricsStore;
+use Tests\Support\StderrCapture;
 
 /**
  * @param list<array<string, mixed>> $entries
@@ -200,10 +201,11 @@ test('the stats command rejects a malformed window instead of guessing one', fun
         putenv('AI_OLYMPUS_HOME=' . sys_get_temp_dir());
 
         ob_start();
-        $exitCode = Installer::run(['ai-olympus', 'stats', '--last=lately']);
+        [$exitCode, $stderr] = StderrCapture::run(static fn (): int => Installer::run(['ai-olympus', 'stats', '--last=lately']));
         ob_get_clean();
 
         expect($exitCode)->toBe(1);
+        expect($stderr)->toContain('--last takes a number of days');
     } finally {
         putenv($home === false ? 'AI_OLYMPUS_HOME' : 'AI_OLYMPUS_HOME=' . $home);
     }
@@ -220,10 +222,11 @@ test('the stats command reports an unresolvable home rather than writing into th
         putenv('USERPROFILE=');
 
         ob_start();
-        $exitCode = Installer::run(['ai-olympus', 'stats']);
+        [$exitCode, $stderr] = StderrCapture::run(static fn (): int => Installer::run(['ai-olympus', 'stats']));
         ob_get_clean();
 
         expect($exitCode)->toBe(1);
+        expect($stderr)->toContain('Cannot resolve a home directory');
     } finally {
         putenv($home === false ? 'HOME' : 'HOME=' . $home);
         putenv($profile === false ? 'USERPROFILE' : 'USERPROFILE=' . $profile);

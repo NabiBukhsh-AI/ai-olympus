@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 use Pekral\AiOlympus\Installer;
 use Pekral\AiOlympus\InstallerProjectSettings;
+use Tests\Support\StderrCapture;
 
 /**
  * The handler shape the removed `--enforce-agent-bash-boundary` flag used to write: one command
@@ -307,7 +308,8 @@ test('install reports no hook-handler removal when the project carries none', fu
 });
 
 test('the bash-guard subcommand itself stays removed — install cleans the caller up, it never answers the call', function (): void {
-    $exitCode = Installer::run(['ai-olympus', 'bash-guard']);
+    [$exitCode, $stderr] = StderrCapture::run(static fn (): int => Installer::run(['ai-olympus', 'bash-guard']));
 
     expect($exitCode)->toBe(1);
+    expect($stderr)->toBe('Unknown command: bash-guard' . PHP_EOL);
 });

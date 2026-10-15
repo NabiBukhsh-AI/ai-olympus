@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 use Pekral\AiOlympus\Installer;
 use Pekral\AiOlympus\InstallerPath;
+use Tests\Support\StderrCapture;
 
 /**
  * @param array<int, string> $targets
@@ -450,10 +451,11 @@ test('install fails when target path is a file instead of directory', function (
     try {
         chdir($root);
         ob_start();
-        $exitCode = Installer::run(['ai-olympus', 'install']);
+        [$exitCode, $stderr] = StderrCapture::run(static fn (): int => Installer::run(['ai-olympus', 'install']));
         ob_get_clean();
 
         expect($exitCode)->toBe(1);
+        expect($stderr)->toContain('Cannot create directory: ');
     } finally {
         if ($originalCwd !== '') {
             chdir($originalCwd);
@@ -473,10 +475,11 @@ test('install fails when destination is directory that cannot be removed', funct
     try {
         chdir($root);
         ob_start();
-        $exitCode = Installer::run(['ai-olympus', 'install', '--force']);
+        [$exitCode, $stderr] = StderrCapture::run(static fn (): int => Installer::run(['ai-olympus', 'install', '--force']));
         ob_get_clean();
 
         expect($exitCode)->toBe(1);
+        expect($stderr)->toContain('Cannot remove: ');
     } finally {
         if ($originalCwd !== '') {
             chdir($originalCwd);
@@ -497,10 +500,11 @@ test('install fails when rules subdirectory path is a file', function (): void {
     try {
         chdir($root);
         ob_start();
-        $exitCode = Installer::run(['ai-olympus', 'install']);
+        [$exitCode, $stderr] = StderrCapture::run(static fn (): int => Installer::run(['ai-olympus', 'install']));
         ob_get_clean();
 
         expect($exitCode)->toBe(1);
+        expect($stderr)->toContain('Cannot create directory: ');
     } finally {
         if ($originalCwd !== '') {
             chdir($originalCwd);
@@ -582,10 +586,11 @@ test('install detects a concatenated --force--editor argument and returns exit 1
         chdir($root);
 
         ob_start();
-        $exitCode = Installer::run(['ai-olympus', 'install', '--force--editor=claude']);
+        [$exitCode, $stderr] = StderrCapture::run(static fn (): int => Installer::run(['ai-olympus', 'install', '--force--editor=claude']));
         ob_end_clean();
 
         expect($exitCode)->toBe(1);
+        expect($stderr)->toContain('The --editor option has been removed');
         expect(is_dir($root . '/.claude/rules'))->toBeFalse();
     } finally {
         if ($originalCwd !== '') {
@@ -645,11 +650,12 @@ test('install fails when copy fails due to unwritable destination', function ():
         chdir($root);
         ob_start();
         set_error_handler(static fn (): bool => true);
-        $exitCode = Installer::run(['ai-olympus', 'install']);
+        [$exitCode, $stderr] = StderrCapture::run(static fn (): int => Installer::run(['ai-olympus', 'install']));
         restore_error_handler();
         ob_get_clean();
 
         expect($exitCode)->toBe(1);
+        expect($stderr)->toContain('Unable to copy ');
     } finally {
         chmod($targetDir, 0755);
 
@@ -680,11 +686,12 @@ test('install fails when existing file cannot be removed', function (): void {
         chdir($root);
         ob_start();
         set_error_handler(static fn (): bool => true);
-        $exitCode = Installer::run(['ai-olympus', 'install', '--force']);
+        [$exitCode, $stderr] = StderrCapture::run(static fn (): int => Installer::run(['ai-olympus', 'install', '--force']));
         restore_error_handler();
         ob_get_clean();
 
         expect($exitCode)->toBe(1);
+        expect($stderr)->toContain('Cannot create directory: ');
     } finally {
         chmod($targetDir, 0755);
 

@@ -13,6 +13,15 @@
     -->
     <rule ref="SlevomatCodingStandard.Functions.UnusedParameter.UnusedParameter">
         <exclude-pattern>src/ComposerPlugin.php</exclude-pattern>
+        <exclude-pattern>tests/Support/StderrCapture.php</exclude-pattern>
+    </rule>
+
+    <!--
+        PHP's built-in php_user_filter fixes the filter() signature, including the by-reference
+        $consumed counter the stream layer reads back. Scoped to the one test helper and the one sniff.
+    -->
+    <rule ref="SlevomatCodingStandard.PHP.DisallowReference.DisallowedPassingByReference">
+        <exclude-pattern>tests/Support/StderrCapture.php</exclude-pattern>
     </rule>
 
     <!-- Exclude vendor directory -->

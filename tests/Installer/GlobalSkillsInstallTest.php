@@ -3,6 +3,7 @@
 declare(strict_types = 1);
 
 use Pekral\AiOlympus\Installer;
+use Tests\Support\StderrCapture;
 
 /**
  * Runs one installer invocation with HOME pointed at an isolated directory, so the assertions
@@ -13,7 +14,7 @@ use Pekral\AiOlympus\Installer;
  *
  * @param array<int, string> $arguments extra CLI arguments appended after `install`
  * @param (callable(string $home): void)|null $seedHome populates the home skills directory before the run
- * @param callable(array{home: string, root: string, exitCode: int, output: string}): void $assert
+ * @param callable(array{home: string, root: string, exitCode: int, output: string, stderr: string}): void $assert
  */
 function globalSkillsRunInstall(array $arguments, ?callable $seedHome, callable $assert): void
 {
@@ -34,10 +35,10 @@ function globalSkillsRunInstall(array $arguments, ?callable $seedHome, callable 
 
         chdir($root);
         ob_start();
-        $exitCode = Installer::run([...['ai-olympus', 'install'], ...$arguments]);
+        [$exitCode, $stderr] = StderrCapture::run(static fn (): int => Installer::run([...['ai-olympus', 'install'], ...$arguments]));
         $output = (string) ob_get_clean();
 
-        $assert(['home' => $home, 'root' => $root, 'exitCode' => $exitCode, 'output' => $output]);
+        $assert(['home' => $home, 'root' => $root, 'exitCode' => $exitCode, 'output' => $output, 'stderr' => $stderr]);
     } finally {
         installerRestoreEnvAndCleanup($homeBefore, $originalCwd, $root);
         installerRemoveDirectory($home);
@@ -121,6 +122,7 @@ test('install --global reports no effect when neither HOME nor USERPROFILE is se
 test('install rejects --global combined with --prune-global', function (): void {
     globalSkillsRunInstall(['--global', '--prune-global'], seedHome: null, assert: function (array $result): void {
         expect($result['exitCode'])->toBe(1);
+        expect($result['stderr'])->toContain('--global and --prune-global are mutually exclusive');
         // Nothing is installed and nothing is removed when the arguments contradict each other.
         expect(is_dir($result['root'] . '/.claude/skills'))->toBeFalse();
     });
