@@ -126,6 +126,7 @@ Your final message is returned to the caller as the result, so make it a clean h
 - **Branch:** the feature branch name.
 - **Summary:** what changed (files / scope) and the result of the tests covering the changed surface. State explicitly that the full gate was not run — it runs once before the merge — and give the `pr-gate` verdict with its record path when one ran.
 - **Validation manifest:** the path to the manifest you wrote, and the selection you chose (narrow or widened) with the reason. Omit only in scoped mode, which validates a manifest rather than writing one.
+- **Impact report:** `## Impact report` in the brief with its `recommendation` and any tier it escalated to (`@skills/blast-radius-analysis/SKILL.md`), or `skipped (FAST)`. Omit only in scoped and missing-tests mode.
 - **Self-check:** the result of each item of the pre-PR self-check (`@skills/resolve-issue/SKILL.md` *Pre-PR self-check*), so `splinter` and `leonardo` see what was verified before the hand-off rather than assuming it.
 - **Tests authored:** the test files added / updated (PHPUnit / Pest), the browser scenarios generated (real e2e tests vs. spec when Playwright is absent), and the suite result. In scoped mode, name the test selection you chose (narrow or widened) and why.
 - **Coverage:** the executed changed-lines coverage result and the command that produced it, or `deferred by leonardo (isolated worktree) — now executed here` when this run took over an unmeasured verdict per *Own the coverage verdict when the CR pass deferred it* above.

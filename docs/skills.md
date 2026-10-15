@@ -1,6 +1,6 @@
 # Skill Catalog
 
-All 62 skills this package ships, grouped by what you reach for them for. Each description is the
+All 63 skills this package ships, grouped by what you reach for them for. Each description is the
 skill's own `description:` front-matter, trimmed to one line — nothing here claims a capability the
 skill does not declare.
 
@@ -126,6 +126,7 @@ link to read the skill itself.
 | Skill | What it is for |
 |-------|----------------|
 | [`analyze-problem`](../skills/analyze-problem/) | Structured problem analysis for debugging, root cause identification, and breaking down complex issues before proposing solutions |
+| [`blast-radius-analysis`](../skills/blast-radius-analysis/) | A planned code change must be mapped to everything that depends on it before implementation starts |
 | [`analyze-support-issue`](../skills/analyze-support-issue/) | A JIRA issue from a support team needs an analysis a non-technical colleague can act on |
 | [`product-capability`](../skills/product-capability/) | A PRD or product intent is clear but the implementation constraints are not |
 | [`understand-propose-implement-verify`](../skills/understand-propose-implement-verify/) | Following a strict problem-solving loop: understand, propose, implement, verify |
