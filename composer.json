@@ -169,23 +169,7 @@
     ],
     "shell-self-tests": [
       "echo '🧪 Running shell script self-tests...'",
-      "bash skills/_shared/assert-current-repo.sh --self-test",
-      "bash skills/_shared/scan-attachments.sh --self-test",
-      "bash skills/_shared/read-manifest.sh --self-test",
-      "bash skills/_shared/classify-risk.sh --self-test",
-      "bash skills/_shared/run-validation.sh --self-test",
-      "bash skills/_shared/run-gate.sh --self-test",
-      "bash skills/_shared/verify-gate.sh --self-test",
-      "bash skills/_shared/plan-route.sh --self-test",
-      "bash skills/_shared/check-handoff.sh --self-test",
-      "bash skills/_shared/render-report.sh --self-test",
-      "bash skills/_shared/record-metrics.sh --self-test",
-      "bash skills/_shared/browser-drive.sh --self-test",
-      "bash skills/page-redesign/scripts/render-previews.sh --self-test",
-      "bash skills/github-issue-triage/scripts/assign-priorities.sh --self-test",
-      "bash skills/github-issue-triage/scripts/collect-sweep-evidence.sh --self-test",
-      "bash skills/code-review-bugsnag/scripts/load-issue.sh --self-test",
-      "bash skills/code-review-jira/scripts/load-issue.sh --self-test"
+      "bash scripts/run-shell-self-tests.sh skills/_shared/assert-current-repo.sh skills/_shared/scan-attachments.sh skills/_shared/read-manifest.sh skills/_shared/classify-risk.sh skills/_shared/run-validation.sh skills/_shared/run-gate.sh skills/_shared/verify-gate.sh skills/_shared/plan-route.sh skills/_shared/check-handoff.sh skills/_shared/render-report.sh skills/_shared/record-metrics.sh skills/_shared/browser-drive.sh skills/page-redesign/scripts/render-previews.sh skills/github-issue-triage/scripts/assign-priorities.sh skills/github-issue-triage/scripts/collect-sweep-evidence.sh skills/code-review-bugsnag/scripts/load-issue.sh skills/code-review-jira/scripts/load-issue.sh"
     ],
     "shellcheck": [
       "echo \"🐚 Running ShellCheck...\"",

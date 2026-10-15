@@ -304,8 +304,8 @@ test('triage self-test runs as part of the project build', function (): void {
     /** @var array<string, array<int, string>> $scripts */
     $scripts = $composer['scripts'];
 
-    expect($scripts['shell-self-tests'])->toContain('bash skills/github-issue-triage/scripts/assign-priorities.sh --self-test');
-    expect($scripts['shell-self-tests'])->toContain('bash skills/github-issue-triage/scripts/collect-sweep-evidence.sh --self-test');
+    expect(implode(' ', $scripts['shell-self-tests']))->toContain(' skills/github-issue-triage/scripts/assign-priorities.sh');
+    expect(implode(' ', $scripts['shell-self-tests']))->toContain(' skills/github-issue-triage/scripts/collect-sweep-evidence.sh');
     expect($scripts['check'])->toContain('@shell-self-tests');
 });
 

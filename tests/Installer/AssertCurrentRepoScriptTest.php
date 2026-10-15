@@ -250,8 +250,13 @@ test('composer check actually runs the shared shell self-tests', function (): vo
     // `exit 0` left `composer build` green.
     expect($composer)->toContain('"shell-self-tests"');
     expect($composer)->toContain('"@shell-self-tests"');
-    expect($composer)->toContain('skills/_shared/assert-current-repo.sh --self-test');
-    expect($composer)->toContain('skills/_shared/scan-attachments.sh --self-test');
+    /** @var array{scripts: array<string, array<int, string>>} $manifest */
+    $manifest = json_decode($composer, associative: true, depth: 512, flags: JSON_THROW_ON_ERROR);
+    $selfTests = implode(' ', $manifest['scripts']['shell-self-tests']);
+    expect($selfTests)->toContain('bash scripts/run-shell-self-tests.sh ');
+    expect($selfTests)->toContain(' skills/_shared/assert-current-repo.sh');
+    expect($selfTests)->toContain(' skills/_shared/scan-attachments.sh');
+    expect((string) file_get_contents($packageDir . '/scripts/run-shell-self-tests.sh'))->toContain('bash "$script" --self-test');
 });
 
 test('CR wrappers keep the opt-in inline-security-pass skip, which no shipped agent sets', function (): void {

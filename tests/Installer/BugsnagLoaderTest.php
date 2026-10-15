@@ -72,7 +72,7 @@ test('the loader self-test runs as part of the project build', function (): void
     /** @var array<string, array<int, string>> $scripts */
     $scripts = $composer['scripts'];
 
-    expect($scripts['shell-self-tests'])->toContain('bash skills/code-review-bugsnag/scripts/load-issue.sh --self-test');
+    expect(implode(' ', $scripts['shell-self-tests']))->toContain(' skills/code-review-bugsnag/scripts/load-issue.sh');
     expect($scripts['check'])->toContain('@shell-self-tests');
 });
 

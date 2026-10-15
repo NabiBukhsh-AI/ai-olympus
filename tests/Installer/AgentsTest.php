@@ -1198,7 +1198,7 @@ test('agents directory ships the raphael acceptance-tester subagent with require
     /** @var array<string, array<int, string>> $scripts */
     $scripts = $composer['scripts'];
 
-    expect($scripts['shell-self-tests'])->toContain('bash skills/_shared/browser-drive.sh --self-test');
+    expect(implode(' ', $scripts['shell-self-tests']))->toContain(' skills/_shared/browser-drive.sh');
 
     // Read-only, local-only, and it never publishes — april carries its walkthrough to the tracker.
     expect($content)->toContain('read-only');

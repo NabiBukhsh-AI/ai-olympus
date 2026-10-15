@@ -28,10 +28,12 @@ test('every deterministic orchestration helper is shipped, executable, and self-
 
     // A self-test nothing executes is dead weight: it can be mutated to always-pass and the build
     // stays green. This is the same wiring the shared repository guard already depends on.
-    $composer = (string) file_get_contents($packageDir . '/composer.json');
+    /** @var array{scripts: array<string, array<int, string>>} $composer */
+    $composer = json_decode((string) file_get_contents($packageDir . '/composer.json'), associative: true, depth: 512, flags: JSON_THROW_ON_ERROR);
+    $selfTests = implode(' ', $composer['scripts']['shell-self-tests']);
 
     foreach ($helpers as $helper) {
-        expect($composer)->toContain('skills/_shared/' . $helper . '.sh --self-test');
+        expect($selfTests)->toContain(' skills/_shared/' . $helper . '.sh');
     }
 });
 
