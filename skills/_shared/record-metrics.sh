@@ -25,11 +25,19 @@
 #                     [--agent-dispatches <n>] [--escalated-dispatches <n>]
 #                     [--review-rounds <n>] [--critical <n>] [--moderate <n>]
 #                     [--input-tokens <n>] [--output-tokens <n>] [--cache-read-tokens <n>]
+#                     [--context-gate-executed <n>] [--context-requested <n>] [--context-skipped <n>]
+#                     [--sources-searched <n>] [--items-returned <n>] [--estimated-tokens-returned <n>]
 #                     [--gate-record <path>]... [--store <path>]
 #   record-metrics.sh --self-test
 #
 #   Token counts are optional by design: no runtime here reports them reliably,
 #   and a fabricated number is worse than an absent one.
+#
+#   The --context-* counters, --sources-searched, --items-returned, and
+#   --estimated-tokens-returned come from the run's `gate-context.sh` verdicts:
+#   how often the gate ran, how often it asked for context or skipped it, and
+#   what the retrieval it allowed actually returned. They measure the context
+#   the gate saved.
 #
 #   --gate-record names a gate record that `run-gate.sh` wrote; repeat it once
 #   per record. Only its `duration_seconds` is read, and the entry stores the
@@ -213,6 +221,13 @@ self_test() {
   expect_exit 'a gate record without a duration is refused' 1 \
     --initial-tier STANDARD --final-tier STANDARD --status success --gate-record "$tmp/gate-broken.json"
 
+  expect_exit 'context gate counters are appended' 0 \
+    --initial-tier FAST --final-tier FAST --status success \
+    --context-gate-executed 2 --context-requested 1 --context-skipped 1 \
+    --sources-searched 2 --items-returned 3 --estimated-tokens-returned 900
+  expect_exit 'a non-numeric context counter is refused' 1 \
+    --initial-tier FAST --final-tier FAST --status success --items-returned some
+
   expect_exit 'an unknown tier is refused' 1 --initial-tier HOT --final-tier FAST --status success
   expect_exit 'an unknown status is refused' 1 --initial-tier FAST --final-tier FAST --status vibes
   expect_exit 'a non-numeric counter is refused' 1 \
@@ -220,13 +235,13 @@ self_test() {
   expect_exit 'an unknown flag is refused' 1 \
     --initial-tier FAST --final-tier FAST --status success --branch feature/secret
 
-  # Every line must parse, and the store must hold exactly the three valid entries.
+  # Every line must parse, and the store must hold exactly the four valid entries.
   local lines
   lines="$(wc -l <"$store" | tr -d ' ')"
-  if [[ "$lines" == "3" ]]; then
+  if [[ "$lines" == "4" ]]; then
     printf 'ok    %-54s %s entries\n' 'only valid entries reach the store' "$lines"
   else
-    printf 'FAIL  %-54s expected 3 entries, got %s\n' 'only valid entries reach the store' "$lines" >&2
+    printf 'FAIL  %-54s expected 4 entries, got %s\n' 'only valid entries reach the store' "$lines" >&2
     failures=$((failures + 1))
   fi
 
@@ -246,10 +261,19 @@ self_test() {
     printf 'ok    %-54s\n' 'no task content is persisted'
   fi
 
-  if jq -e 'select(.gate_runs == 2 and .gate_seconds == 150)' <(tail -1 "$store") >/dev/null 2>&1; then
+  if jq -e 'select(.gate_runs == 2 and .gate_seconds == 150)' <(sed -n 3p "$store") >/dev/null 2>&1; then
     printf 'ok    %-54s\n' 'gate durations are summed, never copied'
   else
     printf 'FAIL  %-54s\n' 'gate durations are summed, never copied' >&2
+    failures=$((failures + 1))
+  fi
+
+  if jq -e 'select(.context_gate_executed == 2 and .context_requested == 1 and .context_skipped == 1
+      and .sources_searched == 2 and .items_returned == 3 and .estimated_tokens_returned == 900)' \
+    <(tail -1 "$store") >/dev/null 2>&1; then
+    printf 'ok    %-54s\n' 'context gate counters are stored as counts'
+  else
+    printf 'FAIL  %-54s\n' 'context gate counters are stored as counts' >&2
     failures=$((failures + 1))
   fi
 

@@ -12,7 +12,17 @@ declare(strict_types = 1);
 test('every deterministic orchestration helper is shipped, executable, and self-testing', function (): void {
     $packageDir = dirname(__DIR__, 2);
 
-    $helpers = ['run-validation', 'plan-route', 'check-handoff', 'render-report', 'record-metrics', 'read-manifest', 'run-gate', 'verify-gate', 'gate-context'];
+    $helpers = [
+        'run-validation',
+        'plan-route',
+        'check-handoff',
+        'render-report',
+        'record-metrics',
+        'read-manifest',
+        'run-gate',
+        'verify-gate',
+        'gate-context',
+    ];
 
     foreach ($helpers as $helper) {
         $script = $packageDir . '/skills/_shared/' . $helper . '.sh';
@@ -247,6 +257,7 @@ test('the deterministic helpers are mapped for Codex, not only for Claude Code',
         expect($toml)->toContain('run-validation.sh');
         // The shared machine gate record (issue #169) runs through the same helpers on Codex.
         expect($toml)->toContain('`run-gate.sh`, `verify-gate.sh`');
+        expect($toml)->toContain('`gate-context.sh`');
         expect($toml)->toContain('platform-neutral by construction');
     }
 
@@ -270,15 +281,21 @@ test('the context relevance gate decides cheaply and defaults to false', functio
 
     foreach ([
         'default outcome skips retrieval with context_required false',
+        'default verdict turns every source off with an empty budget',
+        'ambiguous task without paths, symbols, or labels skips retrieval',
         'a concrete class in a known domain returns context_required true',
         'symbol match enables relevant sources and sets domains',
         'each knowledge source can be enabled or disabled independently',
         'deterministic detection is preferred over LLM',
-        'ambiguous task with insufficient signals escalates to LLM classification',
+        'insufficient deterministic signals escalate to LLM classification',
         'budget smaller than available evidence still produces valid verdict',
         'task type docs or formatting skips retrieval',
         'machine-readable JSON output contains no prose',
     ] as $label) {
         expect($gate)->toContain('\'' . $label . '\'');
     }
+
+    $recorder = (string) file_get_contents($packageDir . '/skills/_shared/record-metrics.sh');
+    expect($recorder)->toContain('\'context gate counters are stored as counts\'');
+    expect(splinterContractText())->toContain('`--context-gate-executed`, `--context-requested`, `--context-skipped`');
 });

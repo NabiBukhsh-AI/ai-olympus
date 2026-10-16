@@ -21,6 +21,16 @@
 #   8. command arguments
 #   9. keywords
 #
+# Classifier
+#   "deterministic"  the inputs decided the verdict on their own.
+#   "llm"            a referenced path, a changed file, or a keyword was supplied,
+#                    but no deterministic rule maps it to a domain. The signals are
+#                    insufficient, so the caller runs one LLM classification. That
+#                    classification decides context_required and the sources, and
+#                    stays inside the budget this verdict carries.
+#   No input at all is not insufficient evidence: it is no evidence, and the
+#   verdict is a deterministic NO.
+#
 # Output (stdout, machine-readable JSON, no prose)
 #   {
 #     "context_required": false,
@@ -42,6 +52,9 @@
 #     ]
 #   }
 #
+#   `reason` is for a human reading the verdict. Nothing downstream parses it;
+#   every decision a caller takes reads a typed field.
+#
 # Exit codes
 #   0  verdict produced
 #   1  usage error / invalid argument
@@ -49,6 +62,8 @@
 set -euo pipefail
 
 PROG="${0##*/}"
+DEFAULT_MAX_ITEMS=5
+DEFAULT_MAX_TOKENS=1500
 
 usage() {
   cat >&2 <<'EOF'
@@ -68,7 +83,6 @@ Options:
   --assignment <path>       Path to assignment file
   --budget-items <n>        Item budget ceiling
   --budget-tokens <n>       Token budget ceiling
-  --ambiguous               Signals are ambiguous; forces escalation to LLM
 
 Prints a machine-readable JSON verdict on stdout.
 EOF
@@ -78,102 +92,70 @@ safe_display() {
   printf '%s' "$1" | LC_ALL=C tr -cd '[:print:]' | cut -c1-120
 }
 
-is_integer() {
-  [[ "$1" =~ ^[0-9]+$ ]]
+is_count() {
+  [[ "$1" =~ ^[0-9]{1,9}$ ]]
 }
 
-json_quote() {
-  printf '%s' "$1" | LC_ALL=C sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' | tr -d '\n\r'
+# emit_verdict <required> <classifier> <confidence> <rules> <architecture> <learnings> <memory>
+#              <max_items> <max_tokens> <domains> <reasons>
+# Booleans are `true` / `false`; domains and reasons are newline-separated lists.
+# jq builds the JSON, so no input can break the output's syntax.
+emit_verdict() {
+  jq -n \
+    --argjson required "$1" \
+    --arg classifier "$2" \
+    --argjson confidence "$3" \
+    --argjson rules "$4" \
+    --argjson architecture "$5" \
+    --argjson learnings "$6" \
+    --argjson memory "$7" \
+    --argjson max_items "$((10#$8))" \
+    --argjson max_tokens "$((10#$9))" \
+    --arg domains "${10}" \
+    --arg reasons "${11}" \
+    '{
+      context_required: $required,
+      classifier: $classifier,
+      confidence: $confidence,
+      domains: ($domains | split("\n") | map(select(length > 0))
+        | reduce .[] as $d ([]; if index([$d]) == null then . + [$d] else . end)),
+      sources: { rules: $rules, architecture: $architecture, learnings: $learnings, memory: $memory },
+      budget: { max_items: $max_items, max_tokens: $max_tokens },
+      reason: ($reasons | split("\n") | map(select(length > 0)))
+    }'
 }
 
 run_gate() {
-  local task_type=""
-  local paths=""
-  local symbols=""
-  local skill=""
-  local repo_meta=""
-  local files=""
-  local labels=""
-  local cmd_args=""
-  local keywords=""
-  local assignment=""
-  local budget_items=""
-  local budget_tokens=""
-  local ambiguous=0
+  local task_type="" paths="" symbols="" skill="" repo_meta="" files=""
+  local labels="" cmd_args="" keywords="" assignment=""
+  local budget_items="" budget_tokens=""
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-    --task-type)
+    --task-type | --paths | --path | --symbols | --symbol | --skill | --repo-metadata | \
+      --files | --file | --labels | --label | --args | --keywords | --keyword | --assignment | \
+      --budget-items | --budget-tokens)
       [[ $# -ge 2 ]] || { usage; return 1; }
-      task_type="$2"
+      case "$1" in
+      --task-type) task_type="$2" ;;
+      --paths | --path) paths="$2" ;;
+      --symbols | --symbol) symbols="$2" ;;
+      --skill) skill="$2" ;;
+      --repo-metadata) repo_meta="$2" ;;
+      --files | --file) files="$2" ;;
+      --labels | --label) labels="$2" ;;
+      --args) cmd_args="$2" ;;
+      --keywords | --keyword) keywords="$2" ;;
+      --assignment) assignment="$2" ;;
+      --budget-items | --budget-tokens)
+        if ! is_count "$2"; then
+          echo "$PROG: $1 must be a non-negative integer" >&2
+          return 1
+        fi
+        if [[ "$1" == "--budget-items" ]]; then budget_items="$2"; else budget_tokens="$2"; fi
+        ;;
+      esac
       shift 2
-      ;;
-    --paths | --path)
-      [[ $# -ge 2 ]] || { usage; return 1; }
-      paths="$2"
-      shift 2
-      ;;
-    --symbols | --symbol)
-      [[ $# -ge 2 ]] || { usage; return 1; }
-      symbols="$2"
-      shift 2
-      ;;
-    --skill)
-      [[ $# -ge 2 ]] || { usage; return 1; }
-      skill="$2"
-      shift 2
-      ;;
-    --repo-metadata)
-      [[ $# -ge 2 ]] || { usage; return 1; }
-      repo_meta="$2"
-      shift 2
-      ;;
-    --files | --file)
-      [[ $# -ge 2 ]] || { usage; return 1; }
-      files="$2"
-      shift 2
-      ;;
-    --labels | --label)
-      [[ $# -ge 2 ]] || { usage; return 1; }
-      labels="$2"
-      shift 2
-      ;;
-    --args)
-      [[ $# -ge 2 ]] || { usage; return 1; }
-      cmd_args="$2"
-      shift 2
-      ;;
-    --keywords | --keyword)
-      [[ $# -ge 2 ]] || { usage; return 1; }
-      keywords="$2"
-      shift 2
-      ;;
-    --assignment)
-      [[ $# -ge 2 ]] || { usage; return 1; }
-      assignment="$2"
-      shift 2
-      ;;
-    --budget-items)
-      [[ $# -ge 2 ]] || { usage; return 1; }
-      if ! is_integer "$2"; then
-        echo "$PROG: --budget-items must be an integer" >&2
-        return 1
-      fi
-      budget_items="$2"
-      shift 2
-      ;;
-    --budget-tokens)
-      [[ $# -ge 2 ]] || { usage; return 1; }
-      if ! is_integer "$2"; then
-        echo "$PROG: --budget-tokens must be an integer" >&2
-        return 1
-      fi
-      budget_tokens="$2"
-      shift 2
-      ;;
-    --ambiguous | --force-escalate)
-      ambiguous=1
-      shift
       ;;
     *)
       echo "$PROG: unknown argument: $(safe_display "$1")" >&2
@@ -183,242 +165,156 @@ run_gate() {
     esac
   done
 
-  # Read assignment file if supplied
   local assignment_content=""
   if [[ -n "$assignment" && -f "$assignment" ]]; then
     assignment_content="$(cat "$assignment")"
   fi
 
-  local context_required=0
-  local classifier="deterministic"
-  local confidence="1.0"
-  local -a domains=()
-  local src_rules=0
-  local src_architecture=0
-  local src_learnings=0
-  local src_memory=0
-  local max_items=0
-  local max_tokens=0
-  local -a reasons=()
+  local context_required=false classifier="deterministic" confidence="1.0"
+  local src_rules=false src_architecture=false src_learnings=false src_memory=false
+  local domains="" reasons="" nl=$'\n'
 
-  # Check for explicit ambiguity or insufficient signals
-  if [[ "$ambiguous" -eq 1 ]]; then
-    classifier="llm"
-    confidence="0.5"
-    reasons+=("Deterministic signals insufficient; escalated to LLM classification")
-    emit_verdict "$context_required" "$classifier" "$confidence" "$src_rules" "$src_architecture" "$src_learnings" "$src_memory" "$max_items" "$max_tokens" domains reasons
-    return 0
-  fi
-
-  # 1. Precedence 1: Task type
+  # 1. Task type
   local tt_lower
   tt_lower="$(printf '%s' "$task_type" | tr '[:upper:]' '[:lower:]')"
   case "$tt_lower" in
   docs | documentation | typo | formatting | format | metadata | chore)
-    reasons+=("Task type is $tt_lower; skipping optional retrieval")
-    emit_verdict 0 "deterministic" "1.0" 0 0 0 0 0 0 domains reasons
+    emit_verdict false deterministic 1.0 false false false false 0 0 "" \
+      "Task type is $(safe_display "$tt_lower"); skipping optional retrieval"
     return 0
     ;;
   esac
 
-  # Check labels for docs/formatting only
   local lbl_lower
   lbl_lower="$(printf '%s' "$labels" | tr '[:upper:]' '[:lower:]')"
   if [[ "$lbl_lower" =~ ^(docs|documentation)$ && -z "$symbols" && -z "$paths" ]]; then
-    reasons+=("Label indicates documentation-only; skipping optional retrieval")
-    emit_verdict 0 "deterministic" "1.0" 0 0 0 0 0 0 domains reasons
+    emit_verdict false deterministic 1.0 false false false false 0 0 "" \
+      "Label indicates documentation-only; skipping optional retrieval"
     return 0
   fi
 
-  # 2. Precedence 2: Referenced paths
+  # 2. Referenced paths (and 6. changed files, matched by the same path rules)
   local all_paths="${paths},${files}"
   if [[ "$all_paths" =~ (app/|src/|routes/) ]]; then
-    context_required=1
-    domains+=("application")
-    src_rules=1
-    src_architecture=1
-    reasons+=("Referenced application paths: $paths")
+    context_required=true
+    domains+="application${nl}"
+    src_rules=true
+    src_architecture=true
+    reasons+="Referenced application paths: $(safe_display "$all_paths")${nl}"
   fi
   if [[ "$all_paths" =~ (database/|migrations/) ]]; then
-    context_required=1
-    domains+=("database")
-    src_rules=1
-    src_learnings=1
-    reasons+=("Referenced database/migration paths: $paths")
+    context_required=true
+    domains+="database${nl}"
+    src_rules=true
+    src_learnings=true
+    reasons+="Referenced database/migration paths: $(safe_display "$all_paths")${nl}"
   fi
   if [[ "$all_paths" =~ (auth/|security/) ]]; then
-    context_required=1
-    domains+=("security")
-    src_rules=1
-    src_learnings=1
-    src_memory=1
-    reasons+=("Referenced security boundary paths: $paths")
+    context_required=true
+    domains+="security${nl}"
+    src_rules=true
+    src_learnings=true
+    src_memory=true
+    reasons+="Referenced security boundary paths: $(safe_display "$all_paths")${nl}"
   fi
 
-  # 3. Precedence 3: Referenced classes/symbols
+  # 3. Referenced classes/symbols
   if [[ -n "$symbols" ]]; then
-    context_required=1
+    context_required=true
     confidence="0.95"
-    reasons+=("Concrete symbol match: $symbols")
+    reasons+="Concrete symbol match: $(safe_display "$symbols")${nl}"
 
     if [[ "$symbols" =~ (Controller|Action|Model|Policy|Service|Job|Event|Listener|Route) ]]; then
-      domains+=("laravel")
-      domains+=("architecture")
-      src_rules=1
-      src_architecture=1
-      src_learnings=1
+      domains+="laravel${nl}architecture${nl}"
+      src_rules=true
+      src_architecture=true
+      src_learnings=true
     fi
 
     if [[ "$symbols" =~ (Migration|Schema|Table|Query) ]]; then
-      domains+=("database")
-      src_rules=1
-      src_learnings=1
+      domains+="database${nl}"
+      src_rules=true
+      src_learnings=true
     fi
 
     if [[ "$symbols" =~ (Lock|Mutex|Concurrency|Queue|Transaction) ]]; then
-      domains+=("concurrency")
-      src_rules=1
-      src_learnings=1
-      src_memory=1
+      domains+="concurrency${nl}"
+      src_rules=true
+      src_learnings=true
+      src_memory=true
     fi
   fi
 
-  # 4. Precedence 4: Skill metadata
+  # 4. Skill metadata
   local sk_lower
   sk_lower="$(printf '%s' "$skill" | tr '[:upper:]' '[:lower:]')"
   if [[ "$sk_lower" =~ (security-review|security-audit) ]]; then
-    context_required=1
-    domains+=("security")
-    src_rules=1
-    src_learnings=1
-    reasons+=("Security skill metadata: $skill")
+    context_required=true
+    domains+="security${nl}"
+    src_rules=true
+    src_learnings=true
+    reasons+="Security skill metadata: $(safe_display "$skill")${nl}"
   elif [[ "$sk_lower" =~ (class-refactoring|refactor) ]]; then
-    context_required=1
-    domains+=("architecture")
-    src_architecture=1
-    src_rules=1
-    reasons+=("Refactoring skill metadata: $skill")
+    context_required=true
+    domains+="architecture${nl}"
+    src_architecture=true
+    src_rules=true
+    reasons+="Refactoring skill metadata: $(safe_display "$skill")${nl}"
   fi
 
-  # 5. Precedence 5: Repository metadata
-  if [[ "$context_required" -eq 1 ]]; then
+  # 5. Repository metadata only refines a verdict other evidence already established.
+  if [[ "$context_required" == true ]]; then
     local rm_lower
     rm_lower="$(printf '%s' "$repo_meta" | tr '[:upper:]' '[:lower:]')"
     if [[ "$rm_lower" =~ laravel ]]; then
-      domains+=("laravel")
+      domains+="laravel${nl}"
     fi
   fi
 
-  # 6. Precedence 6-9: Check keywords/assignment for security or database if not yet found
+  # 8-9. Command arguments, keywords, and the assignment text
   local combined_text="${keywords} ${cmd_args} ${assignment_content}"
-  if [[ "$context_required" -eq 0 && -n "$combined_text" ]]; then
+  if [[ "$context_required" == false ]]; then
     if [[ "$combined_text" =~ (vulnerability|CVE-|injection|untrusted|auth|token) ]]; then
-      context_required=1
-      domains+=("security")
-      src_rules=1
-      src_learnings=1
-      reasons+=("Security signals found in keywords/assignment")
+      context_required=true
+      domains+="security${nl}"
+      src_rules=true
+      src_learnings=true
+      reasons+="Security signals found in keywords/assignment${nl}"
     elif [[ "$combined_text" =~ (migration|schema|query|database|deadlock) ]]; then
-      context_required=1
-      domains+=("database")
-      src_rules=1
-      src_learnings=1
-      reasons+=("Database signals found in keywords/assignment")
+      context_required=true
+      domains+="database${nl}"
+      src_rules=true
+      src_learnings=true
+      reasons+="Database signals found in keywords/assignment${nl}"
     fi
   fi
 
-  # Determine budgets
-  if [[ "$context_required" -eq 1 ]]; then
-    max_items=5
-    max_tokens=1500
-    if [[ -n "$budget_items" ]]; then
-      max_items="$budget_items"
-    fi
-    if [[ -n "$budget_tokens" ]]; then
-      max_tokens="$budget_tokens"
-    fi
+  local max_items=0 max_tokens=0
+  if [[ "$context_required" == true ]]; then
+    max_items="${budget_items:-$DEFAULT_MAX_ITEMS}"
+    max_tokens="${budget_tokens:-$DEFAULT_MAX_TOKENS}"
+  elif [[ -n "$paths" || -n "$files" || -n "$keywords" ]]; then
+    # Evidence exists, but no deterministic rule maps it to a domain.
+    classifier="llm"
+    confidence="0.5"
+    max_items="${budget_items:-$DEFAULT_MAX_ITEMS}"
+    max_tokens="${budget_tokens:-$DEFAULT_MAX_TOKENS}"
+    reasons+="Deterministic signals insufficient; escalated to LLM classification${nl}"
   else
-    max_items=0
-    max_tokens=0
-    confidence="1.0"
-    reasons+=("No evidence of relevance; skipping optional retrieval by default")
+    reasons+="No evidence of relevance; skipping optional retrieval by default${nl}"
   fi
 
-  # Deduplicate domains
-  local -a unique_domains=()
-  for d in ${domains[@]+"${domains[@]}"}; do
-    local found=0
-    for u in ${unique_domains[@]+"${unique_domains[@]}"}; do
-      if [[ "$u" == "$d" ]]; then
-        found=1
-        break
-      fi
-    done
-    if [[ "$found" -eq 0 ]]; then
-      unique_domains+=("$d")
-    fi
-  done
-
-  emit_verdict "$context_required" "$classifier" "$confidence" "$src_rules" "$src_architecture" "$src_learnings" "$src_memory" "$max_items" "$max_tokens" unique_domains reasons
-  return 0
-}
-
-emit_verdict() {
-  local req="$1"
-  local cls="$2"
-  local conf="$3"
-  local r_rules="$4"
-  local r_arch="$5"
-  local r_learn="$6"
-  local r_mem="$7"
-  local items="$8"
-  local tokens="$9"
-  local -n dom_ref="${10}"
-  local -n rsn_ref="${11}"
-
-  printf '{\n'
-  printf '  "context_required": %s,\n' "$([[ "$req" -eq 1 ]] && printf 'true' || printf 'false')"
-  printf '  "classifier": "%s",\n' "$cls"
-  printf '  "confidence": %s,\n' "$conf"
-
-  printf '  "domains": ['
-  local dfirst=1
-  for d in ${dom_ref[@]+"${dom_ref[@]}"}; do
-    [[ "$dfirst" -eq 1 ]] || printf ', '
-    dfirst=0
-    printf '"%s"' "$(json_quote "$d")"
-  done
-  printf '],\n'
-
-  printf '  "sources": {\n'
-  printf '    "rules": %s,\n' "$([[ "$r_rules" -eq 1 ]] && printf 'true' || printf 'false')"
-  printf '    "architecture": %s,\n' "$([[ "$r_arch" -eq 1 ]] && printf 'true' || printf 'false')"
-  printf '    "learnings": %s,\n' "$([[ "$r_learn" -eq 1 ]] && printf 'true' || printf 'false')"
-  printf '    "memory": %s\n' "$([[ "$r_mem" -eq 1 ]] && printf 'true' || printf 'false')"
-  printf '  },\n'
-
-  printf '  "budget": {\n'
-  printf '    "max_items": %d,\n' "$items"
-  printf '    "max_tokens": %d\n' "$tokens"
-  printf '  },\n'
-
-  printf '  "reason": ['
-  local rfirst=1
-  for r in ${rsn_ref[@]+"${rsn_ref[@]}"}; do
-    [[ "$rfirst" -eq 1 ]] || printf ','
-    rfirst=0
-    printf '\n    "%s"' "$(json_quote "$r")"
-  done
-  if [[ "$rfirst" -eq 0 ]]; then
-    printf '\n  '
-  fi
-  printf ']\n'
-  printf '}\n'
+  emit_verdict "$context_required" "$classifier" "$confidence" \
+    "$src_rules" "$src_architecture" "$src_learnings" "$src_memory" \
+    "$max_items" "$max_tokens" "$domains" "$reasons"
 }
 
 self_test() {
-  local failures=0 script
+  local failures=0 script tmp
   script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$PROG"
+  tmp="$(mktemp -d)"
+  # shellcheck disable=SC2064
+  trap "rm -rf '$tmp'" EXIT
 
   expect_field() {
     local label="$1" expected="$2" filter="$3"
@@ -455,10 +351,14 @@ self_test() {
   }
 
   expect_field 'default outcome skips retrieval with context_required false' \
-    'false' '.context_required'
+    'false:deterministic' '"\(.context_required):\(.classifier)"'
 
-  expect_field 'default budget is 0 items and 0 tokens' \
-    '0:0' '"\(.budget.max_items):\(.budget.max_tokens)"'
+  expect_field 'default verdict turns every source off with an empty budget' \
+    'false:false:false:false:0:0' \
+    '"\(.sources.rules):\(.sources.architecture):\(.sources.learnings):\(.sources.memory):\(.budget.max_items):\(.budget.max_tokens)"'
+
+  expect_field 'ambiguous task without paths, symbols, or labels skips retrieval' \
+    'false:deterministic' '"\(.context_required):\(.classifier)"' --task-type bug --skill resolve-issue
 
   expect_field 'a concrete class in a known domain returns context_required true' \
     'true' '.context_required' --symbols OrderController --task-type bug
@@ -471,14 +371,19 @@ self_test() {
     --symbols DatabaseMigration --task-type bug
 
   expect_field 'deterministic detection is preferred over LLM' \
-    'deterministic' '.classifier' --symbols OrderController
+    'deterministic' '.classifier' --symbols OrderController --paths lib/unmapped.txt
 
-  expect_field 'ambiguous task with insufficient signals escalates to LLM classification' \
-    'llm' '.classifier' --ambiguous
+  expect_field 'insufficient deterministic signals escalate to LLM classification' \
+    'llm:false:5:1500' '"\(.classifier):\(.context_required):\(.budget.max_items):\(.budget.max_tokens)"' \
+    --paths lib/Billing/rounding.txt --keywords pricing
 
   expect_field 'budget smaller than available evidence still produces valid verdict' \
-    '2:500' '"\(.budget.max_items):\(.budget.max_tokens)"' \
-    --symbols OrderController --budget-items 2 --budget-tokens 500
+    'true:2:500' '"\(.context_required):\(.budget.max_items):\(.budget.max_tokens)"' \
+    --symbols OrderControllerQueueMigration --paths app/Http,database/migrations,app/auth/ \
+    --budget-items 2 --budget-tokens 500
+
+  expect_field 'domains are reported once each' \
+    'laravel,architecture' '.domains | join(",")' --symbols OrderController --repo-metadata framework=laravel
 
   expect_field 'task type docs or formatting skips retrieval' \
     'false' '.context_required' --task-type docs --symbols ReadmeUpdate
@@ -486,11 +391,16 @@ self_test() {
   expect_field 'label documentation skips retrieval' \
     'false' '.context_required' --labels documentation
 
+  printf 'Fix the token refresh in the login flow\n' >"$tmp/assignment.md"
+  expect_field 'assignment text is read as a keyword signal' \
+    'true:security' '"\(.context_required):\(.domains[0])"' --assignment "$tmp/assignment.md"
+
   expect_exit 'unknown flag exits with usage error' 1 --unrecognized-flag
+  expect_exit 'a non-numeric budget is refused' 1 --budget-items many
 
   local out
-  out="$("$script" --symbols OrderController)"
-  if printf '%s' "$out" | jq -e . >/dev/null 2>&1; then
+  out="$("$script" --symbols OrderController --paths "$(printf 'app/a"b\tc\\d')")"
+  if printf '%s' "$out" | jq -e '.reason | length > 0' >/dev/null 2>&1; then
     printf 'ok    %-60s\n' 'machine-readable JSON output contains no prose'
   else
     printf 'FAIL  %-60s output is not valid JSON\n' 'machine-readable JSON output contains no prose' >&2
@@ -505,11 +415,12 @@ self_test() {
   return 0
 }
 
+if ! command -v jq >/dev/null 2>&1; then
+  echo "$PROG: required tool not found: jq" >&2
+  exit 2
+fi
+
 if [[ "${1:-}" == "--self-test" ]]; then
-  if ! command -v jq >/dev/null 2>&1; then
-    echo "$PROG: required tool not found: jq" >&2
-    exit 2
-  fi
   self_test
   exit $?
 fi
