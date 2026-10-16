@@ -290,9 +290,29 @@ test('the context relevance gate decides cheaply and defaults to false', functio
         'insufficient deterministic signals escalate to LLM classification',
         'budget smaller than available evidence still produces valid verdict',
         'task type docs or formatting skips retrieval',
-        'machine-readable JSON output contains no prose',
+        'quotes and control characters in input still give valid JSON',
+        'mixed-case auth words in keywords map to the security domain',
+        'a symbol that maps to no domain escalates to LLM classification',
+        'a documentation label with changed files does not skip retrieval',
+        'reason never carries a caller input value',
     ] as $label) {
         expect($gate)->toContain('\'' . $label . '\'');
+    }
+
+    // One vocabulary for the sensitive domains: the gate and the risk classifier source the same
+    // word lists, so a word added for one verdict cannot silently miss the other.
+    $vocabulary = (string) file_get_contents($packageDir . '/skills/_shared/domain-vocabulary.sh');
+    $classifier = (string) file_get_contents($packageDir . '/skills/_shared/classify-risk.sh');
+
+    foreach (['AUTH_RE', 'DATA_RE', 'QUEUE_RE'] as $name) {
+        $definition = '/^' . $name . '=/m';
+        expect($vocabulary)->toMatch($definition);
+        expect($gate)->not->toMatch($definition);
+        expect($classifier)->not->toMatch($definition);
+    }
+
+    foreach ([$gate, $classifier] as $script) {
+        expect($script)->toContain('. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/domain-vocabulary.sh"');
     }
 
     $recorder = (string) file_get_contents($packageDir . '/skills/_shared/record-metrics.sh');
